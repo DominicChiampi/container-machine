@@ -1,0 +1,44 @@
+version: "3.9"
+services:
+  traefik:
+    container_name: traefik
+    image: traefik
+    restart: always
+    stdin_open: true
+    tty: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik.yml:/etc/traefik/traefik.yml
+      - ./acme:/etc/traefik/acme
+    ports:
+      - "80:80"
+      - "443:443"
+  oauth:
+    container_name: oauth
+    image: thomseddon/traefik-forward-auth:2-arm64
+    restart: always
+    stdin_open: true
+    tty: true
+    environment:
+      DEFAULT_PROVIDER: generic-oauth
+      PROVIDERS_GENERIC_OAUTH_AUTH_URL: https://github.com/login/oauth/authorize
+      PROVIDERS_GENERIC_OAUTH_TOKEN_URL: https://github.com/login/oauth/access_token
+      PROVIDERS_GENERIC_OAUTH_USER_URL: https://api.github.com/user
+      PROVIDERS_GENERIC_OAUTH_CLIENT_ID: ${OAUTH_CLIENT_ID}
+      PROVIDERS_GENERIC_OAUTH_CLIENT_SECRET: ${OAUTH_CLIENT_SECRET}
+      SECRET: ${SECRET}
+      COOKIE_DOMAIN: ${DOMAIN}
+      AUTH_HOST: oauth.${DOMAIN}
+    labels:
+      traefik.http.middlewares.oauth.forwardauth.address: http://oauth:4181
+      traefik.http.middlewares.oauth.forwardauth.authResponseHeaders: X-Forwarded-User
+      traefik.http.middlewares.oauth.forwardauth.trustForwardHeader: "true"
+      traefik.http.routers.oauth.middlewares: oauth
+      traefik.enable: "true"
+      traefik.http.routers.oauth.rule: Host(`oauth.${DOMAIN}`)
+      traefik.http.routers.oauth.tls: "true"
+      traefik.http.routers.oauth.tls.certresolver: letsencrypt
+      traefik.http.services.oauth.loadbalancer.server.port: 4181
+networks:
+  default:
+    name: traefik

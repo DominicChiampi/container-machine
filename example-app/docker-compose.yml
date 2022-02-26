@@ -1,0 +1,15 @@
+version: "3.9"
+services:
+  app:
+    image: nginxdemos/hello
+    networks:
+      - traefik   # to be reached from traefik
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.app.tls: "true"
+      traefik.http.routers.app.tls.certresolver: letsencrypt
+      traefik.http.routers.app.rule: Host(`app.${DOMAIN}`)
+      traefik.http.routers.app.middlewares: oauth
+networks:
+  traefik:
+    external: true
